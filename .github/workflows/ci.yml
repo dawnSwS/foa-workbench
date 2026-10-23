@@ -1,0 +1,43 @@
+name: Build both Windows editions
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build ${{ matrix.edition }}
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - edition: full
+            feature_args: ""
+            executable: foa-workbench-full.exe
+          - edition: role-ban-only
+            feature_args: --features role-ban-only
+            executable: foa-workbench-role-ban-only.exe
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: dtolnay/rust-toolchain@1.99.1
+      - name: Build release
+        run: cargo build --release --no-default-features ${{ matrix.feature_args }} --target-dir target/${{ matrix.edition }}
+      - name: Name edition executable
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Copy-Item "target/${{ matrix.edition }}/release/foa-workbench.exe" "dist/${{ matrix.executable }}"
+      - name: Upload Windows executable
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: foa-workbench-${{ matrix.edition }}-windows
+          path: dist/${{ matrix.executable }}
+          if-no-files-found: error
